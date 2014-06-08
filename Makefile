@@ -25,7 +25,7 @@ all: $(LIB_NAME)
 
 .PHONY: test
 test: $(TEST_BIN)
-	$(TEST_BIN)
+	@RUST_LOG=quickcheck $(TEST_BIN)
 
 .PHONY: bench
 bench: $(BENCH_BIN)
@@ -35,9 +35,8 @@ $(LIB_NAME): $(QUICKCHECK_LIB_NAME) $(LIB_SRC)
 	@mkdir -p ${BUILD}
 	$(RUSTC) -L $(BUILD) --out-dir ${BUILD} ${LIB_MAIN}
 
-$(TEST_BIN): $(LIB_SRC)
-	@mkdir -p ${BUILD}
-	$(RUSTC) --test --out-dir ${BUILD} ${LIB_MAIN}
+$(TEST_BIN): $(QUICKCHECK_LIB_NAME) $(LIB_SRC)
+	$(RUSTC) -L $(BUILD) --test --out-dir ${BUILD} ${LIB_MAIN}
 
 $(CRITERION_LIB_NAME): $(CRITERION_SRC)
 	@mkdir -p ${BUILD}

@@ -4,4 +4,6 @@
 extern crate debug;
 extern crate collections;
 
+extern crate quickcheck;
+
 pub mod patience;
