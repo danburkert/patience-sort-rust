@@ -1,0 +1,14 @@
+[package]
+
+name = "patience-sort"
+version = "0.1.0"
+authors = [ "dan@danburkert.com" ]
+
+[[lib]]
+name = "patience-sort"
+
+[dependencies.criterion]
+git = "https://github.com/japaric/criterion.rs.git"
+
+[dependencies.quickcheck]
+git = "https://github.com/BurntSushi/quickcheck.git"
