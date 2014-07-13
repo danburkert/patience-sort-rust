@@ -20,4 +20,4 @@
 *.out
 *.app
 *.rlib
-build
+target
