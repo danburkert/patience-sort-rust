@@ -2,6 +2,51 @@
 #![crate_name = "sort"]
 
 use std::ptr;
+use std::iter::Peekable;
+
+struct MergingIterator<'a, A, T, U> {
+    a: Peekable<A, T>,
+    b: Peekable<A, U>,
+    f: |&A, &A|: 'a -> Ordering
+}
+
+enum IteratorSelector{ A, B }
+
+impl<'a, A, T : Iterator<A>, U : Iterator<A>> Iterator<A> for MergingIterator<'a, A, T, U> {
+    #[inline]
+    fn next(&mut self) -> Option<A> {
+        let mut a: &mut Peekable<A, T> = &mut self.a;
+        let mut b: &mut Peekable<A, U> = &mut self.b;
+        let mut f: &mut |&A, &A| -> Ordering = &mut self.f;
+
+        match get_next(a.peek(), b.peek(), |a, b| (*f)(a, b)) {
+            A => a.next(),
+            B => b.next()
+        }
+    }
+
+    #[inline]
+    fn size_hint(&self) -> (uint, Option<uint>) {
+        let (a_lower, a_upper) = self.a.size_hint();
+        let (b_lower, b_upper) = self.b.size_hint();
+
+        let lower = a_lower + b_lower;
+        let upper = a_upper.and_then(|a| b_upper.map(|b| a + b));
+        (lower, upper)
+    }
+}
+
+fn get_next<'a, A>(a: Option<&A>,
+                   b: Option<&A>,
+                   f: |&A, &A| -> Ordering)
+                   -> IteratorSelector {
+    match (a, b) {
+        (None, _) => B,
+        (_, None) => A,
+        (Some(a_next), Some(b_next)) if f(a_next, b_next) == Greater => B,
+        _ => A
+    }
+}
 
 pub fn patience_sort<T : std::fmt::Show>(slice: &mut [T], cmp: |&T, &T| -> Ordering) {
     let mut runs: Vec<Vec<T>> = Vec::new();
@@ -12,19 +57,23 @@ pub fn patience_sort<T : std::fmt::Show>(slice: &mut [T], cmp: |&T, &T| -> Order
         if index == runs.len() {
             runs.push(vec![val]);
         } else {
-           runs.get_mut(index).push(val)
+           runs.get_mut(index).push(val);
         }
     }
 
     let mut offset = 0u;
-    for mut run in runs.move_iter() {
-        unsafe {
-        let sub_slice = slice.mut_slice_from(offset);
-            sub_slice.copy_memory(run.as_mut_slice());
-            offset += run.len();
-            run.set_len(0);
-        }
-    }
+
+    let runs_iter = runs.move_iter().rev();
+
+    let first: std::vec::MoveItems<T> =  runs_iter.next().map_or(Vec::new().move_iter(), |run| run.move_iter());
+    let second: std::vec::MoveItems<T> = runs_iter.next().map_or(Vec::new().move_iter(), |run| run.move_iter());
+    let zero = MergingIterator { a: first.peekable(), b: second.peekable(), f: |a, b| cmp(a, b) };
+
+    let merged = runs.move_iter().rev().fold(zero, |acc, vec| {
+        MergingIterator { a: acc.peekable(), b: vec.move_iter().peekable(), f: |a, b| cmp(a, b) }
+    });
+
+    fail!();
 }
 
 #[inline]
@@ -46,8 +95,8 @@ fn runs_search<'a, T>(runs: &'a Vec<Vec<T>>,
 /// inserted. The returned index will be in [0, runs.len()].
 #[inline]
 fn runs_bsearch<T>(runs: &Vec<Vec<T>>,
-             element: &T,
-             cmp: |&T, &T| -> Ordering) -> uint {
+                   element: &T,
+                   cmp: |&T, &T| -> Ordering) -> uint {
     let mut base = 0u;
     let mut lim = runs.len();
 
