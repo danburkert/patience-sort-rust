@@ -19,7 +19,6 @@ fn main() {
 
     b.bench_group("patience_sort_uniform", sizes, patience_sort_uniform);
     b.bench_group("std_sort_uniform", sizes, std_sort_uniform);
-
 }
 
 #[inline]
