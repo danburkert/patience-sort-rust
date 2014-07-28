@@ -1,5 +1,3 @@
-#![crate_type = "bin"]
-
 extern crate criterion;
 extern crate patience_sort;
 
@@ -19,6 +17,8 @@ fn main() {
 
     b.bench_family("patience_sort_uniform", patience_sort_uniform, sizes);
     b.bench_family("std_sort_uniform", std_sort_uniform, sizes);
+    b.bench_family("patience_sort_sorted", patience_sort_sorted, sizes);
+    b.bench_family("std_sort_sorted", std_sort_sorted, sizes);
 }
 
 #[inline]
@@ -37,6 +37,22 @@ fn patience_sort_uniform(b: &mut Bencher, size: &uint) {
 #[allow(dead_code)]
 fn std_sort_uniform(b: &mut Bencher, size: &uint) {
     let items: Vec<int> = get_rng().gen_iter::<int>().take(*size).collect();
+    b.iter(|| {
+        items.clone().sort();
+    })
+}
+
+#[allow(dead_code)]
+fn patience_sort_sorted(b: &mut Bencher, size: &uint) {
+    let items: Vec<int> = Vec::from_fn(*size, |i| i as int);
+    b.iter(|| {
+        patience_sort(items.clone().as_mut_slice(), |a, b| a.cmp(b));
+    })
+}
+
+#[allow(dead_code)]
+fn std_sort_sorted(b: &mut Bencher, size: &uint) {
+    let items: Vec<int> = Vec::from_fn(*size, |i| i as int);
     b.iter(|| {
         items.clone().sort();
     })
