@@ -17,8 +17,8 @@ fn main() {
     let mut b = Criterion::default();
     let sizes = &[8u, 1024];
 
-    b.bench_group("patience_sort_uniform", sizes, patience_sort_uniform);
-    b.bench_group("std_sort_uniform", sizes, std_sort_uniform);
+    b.bench_family("patience_sort_uniform", patience_sort_uniform, sizes);
+    b.bench_family("std_sort_uniform", std_sort_uniform, sizes);
 }
 
 #[inline]
@@ -27,16 +27,16 @@ fn get_rng() -> StdRng {
 }
 
 #[allow(dead_code)]
-fn patience_sort_uniform(b: &mut Bencher, size: uint) {
-    let items: Vec<int> = get_rng().gen_iter::<int>().take(size).collect();
+fn patience_sort_uniform(b: &mut Bencher, size: &uint) {
+    let items: Vec<int> = get_rng().gen_iter::<int>().take(*size).collect();
     b.iter(|| {
         patience_sort(items.clone().as_mut_slice(), |a, b| a.cmp(b));
     })
 }
 
 #[allow(dead_code)]
-fn std_sort_uniform(b: &mut Bencher, size: uint) {
-    let items: Vec<int> = get_rng().gen_iter::<int>().take(size).collect();
+fn std_sort_uniform(b: &mut Bencher, size: &uint) {
+    let items: Vec<int> = get_rng().gen_iter::<int>().take(*size).collect();
     b.iter(|| {
         items.clone().sort();
     })

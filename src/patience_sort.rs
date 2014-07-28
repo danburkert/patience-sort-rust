@@ -11,82 +11,92 @@ use std::mem;
 use ringbuf::RingBuf;
 use std::collections::Deque;
 
+use std::iter::Peekable;
+
+#[inline]
+pub fn copy_run_into_buf<T>(mut run: RingBuf<T>, buf: *mut T) {
+}
+
 pub fn patience_sort<T : std::fmt::Show>(slice: &mut [T], cmp: |&T, &T| -> Ordering) {
     let len = slice.len();
     if len <= 1 { return; }
-    let mut runs: Vec<RingBuf<T>> = generate_runs(slice, cmp);
+    let mut runs: Vec<RingBuf<T>> = generate_runs(slice, |a, b| cmp(a, b));
+    runs.sort_by(|a, b| a.len().cmp(&b.len()));
 
-    // Do the initial merge back into the original slice.
-    //let run1 = runs.pop().unwrap(); // Safe because `len > 0`
-    //let run2 = runs.pop().unwrap_or(RingBuf::new());
-    //let src1 = run1.into_vec().as_slice();
-    //let src2 = run2.into_vec().as_slice();
-    //let mut idx = len - src1.len() - src2.len();
-    { // necessary for borrow scope
-        //let dest = slice.mut_slice_from(idx);
-        //slice_merge(src1, src2, dest, |a, b| cmp(a, b));
-    }
+    println!("runs: {}", runs);
 
-    // Do subsequent blind merges
-    for run in runs.iter().rev() {
-        //idx -= run.len();
-        //let dest = slice.mut_slice_from(idx);
-        //blind_merge(run.as_slice(), dest, |a, b| cmp(a, b));
-    }
+    unbalanced_ping_pong_merge(slice, runs, |a, b| cmp(a, b));
 }
 
-/// Merge two sorted iterators into the `sink` slice.
-/// The length of the iterators must equal the sink slice.
-fn iterator_merge<T>(src1: &Iterator<T>,
-                     src2: &Iterator<T>,
-                     sink: &mut [T],
-                     compare: |&T, &T| -> Ordering) {
-    let sink_len = sink.len() as int;
+enum BufferSelector { A, B }
 
-    for i in range(0, sink_len) {
-        debug_assert!(idx1 >= 0 && idx1 <= src1_len,
-                      "Illegal index into src1: {}, src1 length: {}.", idx1, src1_len);
-        debug_assert!(idx2 >= 0 && idx2 <= src2_len,
-                      "Illegal index into src2: {}, src2 length: {}.", idx2, src2_len);
-        debug_assert!(i >= 0 && i < sink_len,
-                      "Illegal index into sink: {}, sink length: {}.", i, sink_len);
-
-        if idx1 == src1_len {
-            // src1 is exhausted; copy the remaining elements from src2
-            unsafe {
-                let src_elem = buf2.offset(idx2) as *const T;
-                let sink_elem = sink_buf.offset(i);
-                ptr::copy_nonoverlapping_memory(sink_elem, src_elem, (sink_len - i) as uint);
-            }
-            break;
-        }
-
-        if idx2 == src2_len {
-            // src2 is exhausted; copy the remaining elements from src1
-            unsafe {
-                let src_elem = buf1.offset(idx1) as *const T;
-                let sink_elem = sink_buf.offset(i);
-                ptr::copy_nonoverlapping_memory(sink_elem, src_elem, (sink_len - i) as uint);
-            }
-            break;
-        }
-
+pub fn copy_runs_into_slice<T : std::fmt::Show>(slice: &mut[T],
+                                                mut runs: Vec<RingBuf<T>>)
+                                                -> RingBuf<(BufferSelector, uint, uint)> {
+    runs.sort_by(|a, b| a.len().cmp(&b.len()));
+    let mut buf = slice.as_mut_ptr();
+    let mut offset = 0u;
+    let mut indices = RingBuf::with_capacity(runs.len());
+    for mut run in runs.move_iter() {
+        indices.push_back((A, offset, run.len()));
         unsafe {
-            let elem1 = buf1.offset(idx1) as *const T;
-            let elem2 = buf2.offset(idx2) as *const T;
-            let sink_elem = sink_buf.offset(i);
-
-            if compare(mem::transmute(elem1), mem::transmute(elem2)) == Less {
-                ptr::copy_nonoverlapping_memory(sink_elem, elem1, 1);
-                idx1 = idx1 + 1;
-            } else {
-                ptr::copy_nonoverlapping_memory(sink_elem, elem2, 1);
-                idx2 = idx2 + 1;
-            }
+            let (slice1, slice2) = run.as_slices();
+            ptr::copy_nonoverlapping_memory(buf.offset(offset as int),
+                                            slice1.as_ptr(),
+                                            slice1.len());
+            ptr::copy_nonoverlapping_memory(buf.offset((offset + slice1.len()) as int),
+                                            slice2.as_ptr(),
+                                            slice2.len());
         }
+        unsafe {
+            run.set_len(0);
+        }
+        offset += run.len();
     }
+    indices
 }
 
+pub fn unbalanced_ping_pong_merge<T : std::fmt::Show>(slice: &mut [T],
+                                                      runs: Vec<RingBuf<T>>,
+                                                      cmp: |&T, &T| -> Ordering) {
+    let run_indices = copy_runs_into_slice(slice, runs);
+
+
+    let mut current_run_index = 0u;
+    while run_indices.len() >= 2 {
+        if run_indices.len() == current_run_index + 1 {
+            current_run_index = 0u;
+            continue;
+        }
+
+        let (current_buffer, current_offset, current_len) = *run_indices.get(current_run_index);
+        let (next_buffer, next_offset, next_len) = *run_indices.get(current_run_index + 1);
+        let (_, _, first_len) = *run_indices.get(0);
+        let (_, _, second_len) = *run_indices.get(1);
+
+        let len = current_len + next_len;
+
+        if first_len + second_len > current_len + next_len {
+            current_run_index = 0u;
+            continue;
+        }
+
+        current_buffer match {
+            A => {
+
+            }
+            B => {
+
+            }
+
+
+
+
+
+    }
+
+
+}
 
 /// Merge two sorted runs contained in the `source` slices into the `sink` slice.
 /// The slices may not overlap. The length of the `sink` slice must equal to the
@@ -286,6 +296,21 @@ mod check {
         let result = generate_runs(input.as_slice(), |&a, &b| a.cmp(&b));
 
         assert_eq!(expected, result.iter().map(|run| run.clone().into_vec()).collect());
+    }
+
+    #[test]
+    fn test_foo() {
+        let mut input: Vec<uint> = vec![3u, 4, 5, 6, 7, 8, 10, 13, 2, 1];
+        let mut expected = input.clone();
+
+        expected.sort();
+        patience_sort(input.as_mut_slice(), |&a, &b| a.cmp(&b));
+
+        println!("expected: {}", expected);
+        println!("actual:   {}", input);
+
+        assert!(input == expected)
+
     }
 
     #[quickcheck]
