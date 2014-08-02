@@ -7,8 +7,11 @@ authors = [ "dan@danburkert.com" ]
 [[lib]]
 name = "patience_sort"
 
+#[[bin]]
+#name = "bench"
+
 [[bin]]
-name = "bench"
+name = "profile"
 
 [dependencies.ringbuf]
 git = "https://github.com/danburkert/rust-ringbuf.git"
@@ -17,7 +20,8 @@ git = "https://github.com/danburkert/rust-ringbuf.git"
 git = "https://github.com/BurntSushi/quickcheck.git"
 
 [dependencies.quickcheck_macros]
-git = "https://github.com/BurntSushi/quickcheck.git"
+#git = "https://github.com/BurntSushi/quickcheck.git"
+path = "../quickcheck"
 
 [dependencies.criterion]
 git = "https://github.com/japaric/criterion.rs.git"
