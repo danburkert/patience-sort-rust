@@ -11,10 +11,6 @@ use std::collections::Deque;
 
 use std::iter::Peekable;
 
-#[inline]
-pub fn copy_run_into_buf<T>(mut run: RingBuf<T>, buf: *mut T) {
-}
-
 pub fn patience_sort<T : std::fmt::Show>(slice: &mut [T], cmp: |&T, &T| -> Ordering) {
     let len = slice.len();
     if len <= 1 { return; }
@@ -71,10 +67,10 @@ fn unbalanced_ping_pong_merge<T : std::fmt::Show>(a: *mut T, len: uint,
             continue;
         }
 
-        let (current_buffer, current_offset, current_len) = *run_bufs.get(current_run_index);
-        let (next_buffer, next_offset, next_len) = *run_bufs.get(current_run_index + 1);
-        let (_, _, first_len) = *run_bufs.get(0);
-        let (_, _, second_len) = *run_bufs.get(1);
+        let (current_buffer, current_offset, current_len) = run_bufs[current_run_index];
+        let (next_buffer, next_offset, next_len) = run_bufs[current_run_index + 1];
+        let (_, _, first_len) = run_bufs[0];
+        let (_, _, second_len) = run_bufs[1];
         let total_len = current_len + next_len;
 
         if first_len + second_len > total_len {
@@ -109,7 +105,7 @@ fn unbalanced_ping_pong_merge<T : std::fmt::Show>(a: *mut T, len: uint,
             run_bufs.swap_remove(current_run_index);
         }
     }
-    if run_bufs.get(0).val0() == B {
+    if run_bufs[0].val0() == B {
         unsafe { ptr::copy_nonoverlapping_memory(a, b as *const T, len); }
     }
 }
@@ -136,9 +132,9 @@ unsafe fn blind_merge<T>(src1: *const T, src1_len: uint,
     let mut idx2 = 0u; // index into src2
 
     for i in range(0, sink_len) {
-        debug_assert!(idx1 >= 0 && idx1 <= src1_len,
+        debug_assert!(idx1 <= src1_len,
                       "Illegal index into src1: {}, src1 length: {}.", idx1, src1_len);
-        debug_assert!(idx2 >= 0 && idx2 <= src2_len,
+        debug_assert!(idx2 <= src2_len,
                       "Illegal index into src2: {}, src2 length: {}.", idx2, src2_len);
 
         if idx1 == src1_len {
@@ -201,31 +197,36 @@ fn bsearch<T>(slice: &[T], cmp: |&T| -> Ordering) -> uint {
 fn generate_runs<T>(slice: &[T],
                     cmp: |&T, &T| -> Ordering)
                     -> Vec<RingBuf<T>> {
-    let mut runs: Vec<RingBuf<T>> = Vec::with_capacity(sqrt(slice.len()));
+
+    let mut size = sqrt(slice.len());
+    size += sqrt(size);
+    let size_step = size / slice.len();
+
+    let mut runs: Vec<RingBuf<T>> = Vec::with_capacity(size);
 
     for element in slice.iter() {
-
-        // unwrap is safe, because we never insert an empty run (ringbuf) into the runs vec
+        // unwrap is safe, because we never insert an empty ringbuf into the runs vec
         let tail_index = bsearch(runs.as_slice(), |run| cmp(run.back().unwrap(), element));
         let val: T = unsafe { ptr::read(element) };
         if tail_index < runs.len() {
             runs.get_mut(tail_index).push(val);
         } else {
-            // unwrap is safe, because we never insert an empty run (ringbuf) into the runs vec
+            // unwrap is safe, because we never insert an empty ringbuf into the runs vec
             let head_index = bsearch(runs.as_slice(), |run| cmp(element, run.front().unwrap()));
             if head_index < runs.len() {
                 runs.get_mut(head_index).push_front(val);
             } else {
-                let mut run = RingBuf::new();
+                let mut run = RingBuf::with_capacity(size);
                 run.push(val);
                 runs.push(run);
+                size -= size_step;
             }
         }
     }
     runs
 }
 
-#[inline]
+#[inline(always)]
 pub fn sqrt(size: uint) -> uint{
     (size as f64).sqrt() as uint
 }
