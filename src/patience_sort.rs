@@ -200,7 +200,7 @@ fn generate_runs<T>(slice: &[T],
 
     let mut size = sqrt(slice.len());
     size += sqrt(size);
-    let size_step = size / slice.len();
+    let size_step = if slice.len() == 0 { 0 } else { size / slice.len() };
 
     let mut runs: Vec<RingBuf<T>> = Vec::with_capacity(size);
 

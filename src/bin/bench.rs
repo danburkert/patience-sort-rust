@@ -13,7 +13,7 @@ use patience_sort::patience_sort;
 #[allow(dead_code)]
 fn main() {
     let mut b = Criterion::default();
-    let sizes = &[8u, 1024, 1024];
+    let sizes = &[8u, 1024];
 
     b.bench_family("patience_sort_uniform", patience_sort_uniform, sizes);
     //b.bench_family("std_sort_uniform", std_sort_uniform, sizes);

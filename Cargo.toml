@@ -7,8 +7,8 @@ authors = [ "dan@danburkert.com" ]
 [[lib]]
 name = "patience_sort"
 
-#[[bin]]
-#name = "bench"
+[[bin]]
+name = "bench"
 
 [[bin]]
 name = "profile"
